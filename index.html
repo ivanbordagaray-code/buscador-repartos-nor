@@ -594,6 +594,17 @@ function mapsUrlFor(clienteNombre){
   return (DATA.clientes_maps || {})[clienteNombre] || null;
 }
 
+// Link a Google Maps para mostrar SIEMPRE que haya una dirección: si el cliente tiene un lugar
+// guardado exacto lo usamos (mapsUrlFor), si no armamos una búsqueda de Maps con la dirección tal cual.
+function mapsLinkFor(clienteNombre, direccion){
+  const exact = mapsUrlFor(clienteNombre);
+  if(exact) return exact;
+  if(direccion && direccion.trim()){
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion.trim() + ', Argentina')}`;
+  }
+  return null;
+}
+
 // ---------- Correcciones de dirección a mano (guardadas en Google Sheets) ----------
 const CORRECTIONS_API = 'https://script.google.com/macros/s/AKfycbwRHa-nTP-hRWumQoVLMX4iIpI183Rm5PyZIXf4mHqN5baHLmREqLibnk_cRRx_gl7B/exec';
 let CORRECTIONS = {}; // cliente -> {direccion, maps_url, fecha}
@@ -673,15 +684,13 @@ function renderMain(){
       </div>
       <div class="search-results">
         ${results.map(r => {
-          const mapsUrl = mapsUrlFor(r.cliente);
           const dirMostrada = displayAddressFor(r.cliente, r.direccion);
           return `
           <div class="sr-card">
             <div class="sr-cliente">${esc(r.cliente)}</div>
-            <div class="sr-dir">${esc(dirMostrada)} <a class="addr-edit" data-editcli="${esc(r.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div>
+            <div class="sr-dir">${esc(dirMostrada)} ${mapsLinkFor(r.cliente, dirMostrada) ? `<a href="${esc(mapsLinkFor(r.cliente, dirMostrada))}" target="_blank" rel="noopener" style="font-size:11px;text-decoration:none;" title="Ver en Google Maps">🗺</a>` : ''} <a class="addr-edit" data-editcli="${esc(r.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div>
             <div class="sr-routes">
               ${r.routes.map(rt => `<span class="sr-route-tag" data-pidx="${rt.patternIdx}">${esc(rt.trans)} · <span class="z">${esc(rt.zona)}</span></span>`).join('')}
-              ${mapsUrl ? `<a class="sr-route-tag" style="text-decoration:none;" href="${esc(mapsUrl)}" target="_blank" rel="noopener">🗺 Ver en Google Maps</a>` : ''}
             </div>
           </div>
         `;
@@ -992,8 +1001,8 @@ function renderRouteDetail(main, p){
             <div class="stop-pin">${i+1}</div>
             <div class="stop-body">
               <div>
-                <div class="stop-cliente" data-q="${esc(c.cliente)}">${esc(c.cliente)}${mapsUrl ? ` <a href="${esc(mapsUrl)}" target="_blank" rel="noopener" style="font-size:11px;text-decoration:none;" title="Ver en Google Maps">🗺</a>` : ''}</div>
-                <div class="stop-direccion">${esc(dirMostrada)} <a class="addr-edit" data-editcli="${esc(c.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div>
+                <div class="stop-cliente" data-q="${esc(c.cliente)}">${esc(c.cliente)}</div>
+                <div class="stop-direccion">${esc(dirMostrada)} ${mapsLinkFor(c.cliente, dirMostrada) ? `<a href="${esc(mapsLinkFor(c.cliente, dirMostrada))}" target="_blank" rel="noopener" style="font-size:11px;text-decoration:none;" title="Ver en Google Maps">🗺</a>` : ''} <a class="addr-edit" data-editcli="${esc(c.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div>
               </div>
               <div class="stop-veces">${c.veces}/${p.n} veces</div>
             </div>
@@ -1113,7 +1122,7 @@ function renderRanking(main){
         ${S.top_clientes.map((c,i) => `
           <tr data-cliente="${esc(c.cliente)}">
             <td class="rank-pos">${i+1}</td>
-            <td><div class="rank-cliente">${esc(c.cliente)}</div><div class="rank-dir">${esc(displayAddressFor(c.cliente, c.direccion))} <a class="addr-edit" data-editcli="${esc(c.cliente)}" data-editdir="${esc(displayAddressFor(c.cliente, c.direccion))}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div></td>
+            <td><div class="rank-cliente">${esc(c.cliente)}</div><div class="rank-dir">${esc(displayAddressFor(c.cliente, c.direccion))} ${mapsLinkFor(c.cliente, displayAddressFor(c.cliente, c.direccion)) ? `<a href="${esc(mapsLinkFor(c.cliente, displayAddressFor(c.cliente, c.direccion)))}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="font-size:11px;text-decoration:none;" title="Ver en Google Maps">🗺</a>` : ''} <a class="addr-edit" data-editcli="${esc(c.cliente)}" data-editdir="${esc(displayAddressFor(c.cliente, c.direccion))}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div></td>
             <td class="rank-num">${c.visitas}</td>
             <td class="rank-num">${c.kilos.toLocaleString('es-AR',{maximumFractionDigits:0})} kg</td>
           </tr>`).join('')}
@@ -1173,7 +1182,7 @@ function openClientModal(cliente){
   const totalKg = hist.reduce((a,h) => a + h.kilos, 0);
   const dir = (S.top_clientes.find(c => c.cliente === cliente) || {}).direccion || '';
   const dirMostrada = displayAddressFor(cliente, dir);
-  const mapsUrl = mapsUrlFor(cliente);
+  const mapsUrl = mapsLinkFor(cliente, dirMostrada);
   const box = document.getElementById('modalBox');
   box.innerHTML = `
     <div class="mb-head">
