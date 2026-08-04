@@ -920,7 +920,7 @@ function renderRouteDetail(main, p){
         <button class="back-btn" id="backBtn">← Volver a patrones</button>
       </div>
       <div class="rd-meta">Repetido <span>${p.n}</span> veces · <span>${p.ordered_clients.length}</span> paradas típicas · ${esc(p.fechas[0])} → ${esc(p.fechas[p.fechas.length-1])}</div>
-      <div style="margin-bottom:14px;"><a class="back-btn" id="mapPatternBtn" style="text-decoration:none;display:inline-block;" target="_blank" rel="noopener">🗺 Ver ruteo típico en el mapa</a>${embeddedMapBlock('pattern', p.ordered_clients)}</div>
+      <div style="margin-bottom:14px;"><a class="back-btn" id="mapPatternBtn" style="text-decoration:none;display:inline-block;" target="_blank" rel="noopener">🗺 Ver ruteo típico en el mapa</a></div>
       <div class="route-line">
         ${p.ordered_clients.map((c,i) => `
           <div class="stop">
@@ -958,7 +958,6 @@ function renderRouteDetail(main, p){
   } else {
     mapBtn.style.display = 'none';
   }
-  wireEmbeddedMapToggle('pattern', p.ordered_clients);
   main.querySelectorAll('.fr-item-clickable').forEach(el => {
     el.addEventListener('click', () => {
       const ri = el.dataset.ri;
@@ -971,7 +970,7 @@ function renderRouteDetail(main, p){
       } else {
         const ruta = p.full_routes[ri];
         const mapInfo = buildMapsUrl(ruta.paradas);
-        const mapLink = mapInfo ? `<div style="margin-bottom:8px;"><a href="${mapInfo.url}" target="_blank" rel="noopener" class="back-btn" style="text-decoration:none;display:inline-block;font-size:11.5px;">🗺 Ver esta ruta en el mapa${mapInfo.truncated ? ' (primeras 11 paradas)' : ''}</a>${embeddedMapBlock('hoja'+ri, ruta.paradas)}</div>` : '';
+        const mapLink = mapInfo ? `<div style="margin-bottom:8px;"><a href="${mapInfo.url}" target="_blank" rel="noopener" class="back-btn" style="text-decoration:none;display:inline-block;font-size:11.5px;">🗺 Ver esta ruta en el mapa${mapInfo.truncated ? ' (primeras 11 paradas)' : ''}</a></div>` : '';
         box.innerHTML = mapLink + ruta.paradas.map((par,i) => `
           <div class="fr-parada-item">
             <span class="fp-n">${i+1}</span>
@@ -981,7 +980,6 @@ function renderRouteDetail(main, p){
         `).join('');
         box.classList.add('open');
         el.querySelector('span').textContent = el.querySelector('span').textContent.replace('▸','▾');
-        wireEmbeddedMapToggle('hoja'+ri, ruta.paradas);
       }
     });
   });
