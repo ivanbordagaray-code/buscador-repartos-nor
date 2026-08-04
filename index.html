@@ -476,6 +476,7 @@
 
 <nav class="tabbar">
   <div class="tab" data-tab="rutas">Rutas</div>
+  <div class="tab" data-tab="clientes">Clientes</div>
   <div class="tab" data-tab="dashboard">Dashboard</div>
   <div class="tab" data-tab="ranking">Ranking clientes</div>
   <div class="tab" data-tab="calendario">Calendario</div>
@@ -736,6 +737,7 @@ function renderMain(){
     return;
   }
 
+  if(state.tab === 'clientes'){ renderClientesTab(main); return; }
   if(state.tab === 'dashboard'){ renderDashboard(main); return; }
   if(state.tab === 'ranking'){ renderRanking(main); return; }
   if(state.tab === 'calendario'){ renderCalendario(main); return; }
@@ -1243,6 +1245,44 @@ function allKnownClients(){
   return set;
 }
 
+function renderClientesTab(main){
+  const known = allKnownClients();
+  const rows = [...known.entries()]
+    .map(([cliente, direccion]) => ({cliente, direccion}))
+    .sort((a,b) => a.cliente.localeCompare(b.cliente, 'es'));
+  main.innerHTML = `
+    <div class="content-head">
+      <h1 class="display">Clientes</h1>
+      <div class="sub">${rows.length} clientes · revisión rápida de direcciones — tocá 🗺 para ver el mapa y ✏️ para corregir</div>
+    </div>
+    <div class="abasto-search" style="margin-bottom:16px;">
+      <input id="clientesFilterInput" type="text" placeholder="Filtrar por nombre o dirección..." autocomplete="off">
+    </div>
+    <table class="rank-table" id="clientesTable">
+      <thead><tr><th>Cliente</th><th>Dirección</th></tr></thead>
+      <tbody>
+        ${rows.map(r => {
+          const dirMostrada = displayAddressFor(r.cliente, r.direccion);
+          const mapsUrl = mapsLinkFor(r.cliente, dirMostrada);
+          return `
+          <tr data-filter="${esc((r.cliente + ' ' + dirMostrada).toLowerCase())}">
+            <td><div class="rank-cliente">${esc(r.cliente)}</div></td>
+            <td><div class="rank-dir">${esc(dirMostrada) || '<span style="color:var(--danger);">Sin dirección</span>'} ${mapsUrl ? `<a href="${esc(mapsUrl)}" target="_blank" rel="noopener" style="font-size:11px;text-decoration:none;" title="Ver en Google Maps">🗺</a>` : ''} <a class="addr-edit" data-editcli="${esc(r.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div></td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+  const filterInput = document.getElementById('clientesFilterInput');
+  filterInput.addEventListener('input', () => {
+    const q = filterInput.value.trim().toLowerCase();
+    main.querySelectorAll('#clientesTable tbody tr').forEach(tr => {
+      tr.style.display = (!q || tr.dataset.filter.includes(q)) ? '' : 'none';
+    });
+  });
+  wireAddressEdits(main);
+}
+
 function renderDireccionesProblema(main){
   const items = Object.entries(direccionesProblema).map(([original, info]) => ({original, ...info}));
   const motivoLabel = {
@@ -1387,17 +1427,22 @@ function renderAbasto(main){
   const cadenas = items.filter(i => i.motivos.includes('cadena'));
   const localidad = items.filter(i => i.motivos.includes('localidad'));
   function group(list, removable){
-    return list.map(c => `
+    return list.map(c => {
+      const dirOriginal = c.direccion + (c.localidad ? ', ' + c.localidad : '');
+      const dirMostrada = displayAddressFor(c.cliente, dirOriginal);
+      const mapsUrl = mapsLinkFor(c.cliente, dirMostrada);
+      return `
       <div class="abasto-item">
         <div>
           <div class="ai-cliente">${esc(c.cliente)}</div>
-          <div class="ai-dir">${esc(c.direccion)}${c.localidad ? ', ' + esc(c.localidad) : ''}</div>
+          <div class="ai-dir">${esc(dirMostrada)} ${mapsUrl ? `<a href="${esc(mapsUrl)}" target="_blank" rel="noopener" style="font-size:11px;text-decoration:none;" title="Ver en Google Maps">🗺</a>` : ''} <a class="addr-edit" data-editcli="${esc(c.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div>
           <div class="ai-meta">${c.zonas ? esc(c.zonas.join(' · ')) + ' · ' : ''}${c.choferes ? esc(c.choferes.join(', ')) : ''}</div>
         </div>
         ${removable
           ? `<span class="ai-visitas" style="background:var(--panel-3);color:var(--danger);cursor:pointer;" data-remove="${esc(c.cliente)}">✕ quitar</span>`
           : `<div class="ai-visitas">${c.visitas} entregas</div>`}
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
   main.innerHTML = `
     <div class="content-head">
@@ -1474,6 +1519,8 @@ function renderAbasto(main){
     };
     reader.readAsText(file);
   });
+
+  wireAddressEdits(main);
 }
 
 function renderAll(){
