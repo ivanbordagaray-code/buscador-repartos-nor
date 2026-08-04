@@ -1333,6 +1333,55 @@ function renderDireccionesProblema(main){
   });
 }
 
+// Oficinas municipales de Bromatología / Inspección de Comercio para las localidades donde más
+// repartimos. Direcciones sacadas de las webs oficiales de cada municipio (agosto 2026). Cuando no
+// se encontró la sede específica de bromatología, se dejó la sede municipal más cercana marcada
+// como "a confirmar" para no mandar a alguien a un lugar equivocado con seguridad.
+const BROMATOLOGIA_OFICINAS = [
+  {localidad:'La Plata', direccion:'Calle 3 nº 584 e/ 43 y 44, La Plata', telefono:'0221 422-4634', confirmado:true, nota:'Dirección de Bromatología (Ministerio de Salud PBA)'},
+  {localidad:'Berazategui', direccion:'Av. 14 e/ 131 y 131A, Berazategui', telefono:'4356-9200 int. 2087', confirmado:true, nota:'Subsecretaría de Habilitaciones e Inspecciones y Bromatología'},
+  {localidad:'Florencio Varela', direccion:'25 de Mayo 2725, Florencio Varela', telefono:'4237-1601', confirmado:false, nota:'Sede municipal — pedir por Dirección de Zoonosis y Bromatología'},
+  {localidad:'Lanús', direccion:'Sarmiento y Tucumán, Lanús Este', telefono:'', confirmado:true, nota:'Sanidad Pública Lanús (Bromatología)'},
+  {localidad:'Quilmes', direccion:'Av. Calchaquí 1300, Quilmes Oeste', telefono:'4350-3096', confirmado:true, nota:'Dirección de Bromatología'},
+  {localidad:'Moreno', direccion:'Martínez Melo 240, Moreno Centro', telefono:'0237 403-1123', confirmado:true, nota:'Oficina de Seguridad Alimentaria'},
+  {localidad:'San Miguel', direccion:'Sarmiento 1686, San Miguel', telefono:'11 3884-9649', confirmado:true, nota:'Dirección de Bromatología · Lun a Vie 8 a 14hs'},
+  {localidad:'Burzaco / Almirante Brown', direccion:'Av. Monteverde y Martín Fierro, Burzaco', telefono:'4238-8014', confirmado:true, nota:'Dpto. de Bromatología municipal · 9 a 14hs'},
+  {localidad:'San Vicente / Alejandro Korn', direccion:'Sarmiento 39, San Vicente', telefono:'02225 ...', confirmado:false, nota:'Sede municipal — pedir por Servicio de Bromatología'},
+  {localidad:'Avellaneda', direccion:'Obrero de la Negra 110, Avellaneda Centro', telefono:'5227-7719', confirmado:true, nota:'Dirección de Bromatología'},
+  {localidad:'Tigre', direccion:'Av. Cazón 1514, Tigre', telefono:'011 4512-4400', confirmado:false, nota:'Palacio Municipal — Subsecretaría de Habilitaciones (incluye bromatología)'},
+  {localidad:'Berisso', direccion:'', telefono:'464-5067', confirmado:false, nota:'Bromatología y Veterinaria — sin dirección exacta confirmada, solo teléfono'},
+  {localidad:'Escobar', direccion:'Belgrano 657, 1º piso, Belén de Escobar', telefono:'11 7628-9856', confirmado:true, nota:'Dirección Gral. de Inspección de Comercio y Bromatología'},
+  {localidad:'San Fernando', direccion:'Constitución 1043, San Fernando', telefono:'', confirmado:false, nota:'Sede municipal — pedir por el área de Bromatología'},
+  {localidad:'Morón', direccion:'Alte. Brown 946, Morón', telefono:'4489-7777', confirmado:false, nota:'Oficina de Habilitaciones (incluye inspección bromatológica)'},
+  {localidad:'CABA', direccion:'Tte. Gral. Juan D. Perón 2933/2941, CABA', telefono:'4860-5200 · 147', confirmado:true, nota:'Dirección Gral. de Higiene y Seguridad Alimentaria (GCBA)'},
+];
+
+function renderBromatologiaOficinas(){
+  return `
+    <div class="abasto-count">Oficinas de Bromatología por localidad</div>
+    <div class="sh-hint" style="margin-bottom:12px;">Direcciones de las oficinas municipales de Bromatología / Inspección de Comercio en las localidades donde más repartimos. Las marcadas "a confirmar" son la sede municipal más cercana porque no encontré la oficina puntual — llamá antes de ir.</div>
+    <div class="pattern-grid" style="margin-bottom:28px;">
+      ${BROMATOLOGIA_OFICINAS.map(o => {
+        const mapsUrl = o.direccion ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.direccion + ', Argentina')}` : null;
+        return `
+        <div class="pattern-card" style="cursor:default;">
+          <div class="pc-top">
+            <div class="pc-trans">${esc(o.localidad)}</div>
+            ${o.confirmado ? '' : '<div class="pc-n" style="background:var(--panel-3);color:var(--danger);font-size:10px;">A CONFIRMAR</div>'}
+          </div>
+          <div class="pc-zona">${esc(o.nota)}</div>
+          <div class="pc-stats" style="flex-direction:column;align-items:flex-start;gap:4px;">
+            <span>${o.direccion ? esc(o.direccion) : 'Sin dirección, solo teléfono'}</span>
+            ${o.telefono ? `<span>☎ ${esc(o.telefono)}</span>` : ''}
+          </div>
+          ${mapsUrl ? `<div style="margin-top:8px;"><a href="${esc(mapsUrl)}" target="_blank" rel="noopener" class="back-btn" style="text-decoration:none;display:inline-block;font-size:11.5px;">🗺 Ver en el mapa</a></div>` : ''}
+        </div>
+      `;
+      }).join('')}
+    </div>
+  `;
+}
+
 function renderAbasto(main){
   const items = DATA.stats.abasto;
   const cadenas = items.filter(i => i.motivos.includes('cadena'));
@@ -1353,8 +1402,9 @@ function renderAbasto(main){
   main.innerHTML = `
     <div class="content-head">
       <h1 class="display">Abasto / Bromatología</h1>
-      <div class="sub">Clientes que requieren trámite de abasto: cadenas Makro y Carrefour, más todos los clientes de Moreno y Berazategui</div>
+      <div class="sub">Oficinas de bromatología por localidad, más los clientes que requieren trámite de abasto: cadenas Makro y Carrefour, y todos los de Moreno y Berazategui</div>
     </div>
+    ${renderBromatologiaOficinas()}
     <div class="abasto-count">Cadenas (Makro / Carrefour) — ${cadenas.length}</div>
     <div class="abasto-list" style="margin-bottom:28px;">${group(cadenas) || '<div class="empty-state">Sin registros</div>'}</div>
     <div class="abasto-count">Moreno y Berazategui — ${localidad.length}</div>
