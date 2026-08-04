@@ -589,8 +589,62 @@ function detectAbastoQuery(q){
 
 // Link a Google Maps (guardado desde la lista "Clientes" de tu cuenta) para un cliente, si matchea.
 function mapsUrlFor(clienteNombre){
+  const corr = CORRECTIONS[clienteNombre];
+  if(corr && corr.maps_url) return corr.maps_url;
   return (DATA.clientes_maps || {})[clienteNombre] || null;
 }
+
+// ---------- Correcciones de dirección a mano (guardadas en Google Sheets) ----------
+const CORRECTIONS_API = 'https://script.google.com/macros/s/AKfycbwRHa-nTP-hRWumQoVLMX4iIpI183Rm5PyZIXf4mHqN5baHLmREqLibnk_cRRx_gl7B/exec';
+let CORRECTIONS = {}; // cliente -> {direccion, maps_url, fecha}
+let correctionsLoaded = false;
+
+function loadCorrections(){
+  fetch(CORRECTIONS_API)
+    .then(r => r.json())
+    .then(data => { CORRECTIONS = data || {}; correctionsLoaded = true; renderAll(); })
+    .catch(() => { correctionsLoaded = true; });
+}
+
+function displayAddressFor(cliente, direccionOriginal){
+  const corr = CORRECTIONS[cliente];
+  return (corr && corr.direccion) ? corr.direccion : (direccionOriginal || '');
+}
+
+function editAddress(cliente, direccionActual){
+  const nueva = window.prompt(`Dirección correcta para "${cliente}":`, direccionActual || '');
+  if(nueva === null) return; // cancelado
+  const val = nueva.trim();
+  if(!val || val === direccionActual) return;
+  fetch(CORRECTIONS_API, {
+    method: 'POST',
+    headers: {'Content-Type': 'text/plain;charset=utf-8'},
+    body: JSON.stringify({
+      cliente,
+      direccion_anterior: direccionActual || '',
+      direccion_nueva: val,
+      maps_url: mapsUrlFor(cliente) || ''
+    })
+  }).then(r => r.json()).then(res => {
+    if(res && res.ok){
+      CORRECTIONS[cliente] = {direccion: val, maps_url: mapsUrlFor(cliente) || '', fecha: ''};
+      renderAll();
+    } else {
+      alert('No se pudo guardar la corrección. Probá de nuevo en un rato.');
+    }
+  }).catch(() => alert('No me pude conectar para guardar la corrección. Revisá tu conexión y probá de nuevo.'));
+}
+
+function wireAddressEdits(root){
+  root.querySelectorAll('.addr-edit').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      editAddress(el.dataset.editcli, el.dataset.editdir);
+    });
+  });
+}
+
+loadCorrections();
 
 function renderMain(){
   const main = document.getElementById('mainContent');
@@ -620,10 +674,11 @@ function renderMain(){
       <div class="search-results">
         ${results.map(r => {
           const mapsUrl = mapsUrlFor(r.cliente);
+          const dirMostrada = displayAddressFor(r.cliente, r.direccion);
           return `
           <div class="sr-card">
             <div class="sr-cliente">${esc(r.cliente)}</div>
-            <div class="sr-dir">${esc(r.direccion)}</div>
+            <div class="sr-dir">${esc(dirMostrada)} <a class="addr-edit" data-editcli="${esc(r.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div>
             <div class="sr-routes">
               ${r.routes.map(rt => `<span class="sr-route-tag" data-pidx="${rt.patternIdx}">${esc(rt.trans)} · <span class="z">${esc(rt.zona)}</span></span>`).join('')}
               ${mapsUrl ? `<a class="sr-route-tag" style="text-decoration:none;" href="${esc(mapsUrl)}" target="_blank" rel="noopener">🗺 Ver en Google Maps</a>` : ''}
@@ -642,6 +697,7 @@ function renderMain(){
         renderAll();
       });
     });
+    wireAddressEdits(main);
     return;
   }
 
@@ -931,13 +987,13 @@ function renderRouteDetail(main, p){
       <div class="rd-meta">Repetido <span>${p.n}</span> veces · <span>${p.ordered_clients.length}</span> paradas típicas · ${esc(p.fechas[0])} → ${esc(p.fechas[p.fechas.length-1])}</div>
       <div style="margin-bottom:14px;"><a class="back-btn" id="mapPatternBtn" style="text-decoration:none;display:inline-block;" target="_blank" rel="noopener">🗺 Ver ruteo típico en el mapa</a></div>
       <div class="route-line">
-        ${p.ordered_clients.map((c,i) => { const mapsUrl = mapsUrlFor(c.cliente); return `
+        ${p.ordered_clients.map((c,i) => { const mapsUrl = mapsUrlFor(c.cliente); const dirMostrada = displayAddressFor(c.cliente, c.direccion); return `
           <div class="stop">
             <div class="stop-pin">${i+1}</div>
             <div class="stop-body">
               <div>
                 <div class="stop-cliente" data-q="${esc(c.cliente)}">${esc(c.cliente)}${mapsUrl ? ` <a href="${esc(mapsUrl)}" target="_blank" rel="noopener" style="font-size:11px;text-decoration:none;" title="Ver en Google Maps">🗺</a>` : ''}</div>
-                <div class="stop-direccion">${esc(c.direccion)}</div>
+                <div class="stop-direccion">${esc(dirMostrada)} <a class="addr-edit" data-editcli="${esc(c.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div>
               </div>
               <div class="stop-veces">${c.veces}/${p.n} veces</div>
             </div>
@@ -1007,6 +1063,7 @@ function renderRouteDetail(main, p){
       renderAll();
     });
   });
+  wireAddressEdits(main);
 }
 
 function renderDashboard(main){
@@ -1056,7 +1113,7 @@ function renderRanking(main){
         ${S.top_clientes.map((c,i) => `
           <tr data-cliente="${esc(c.cliente)}">
             <td class="rank-pos">${i+1}</td>
-            <td><div class="rank-cliente">${esc(c.cliente)}</div><div class="rank-dir">${esc(c.direccion)}</div></td>
+            <td><div class="rank-cliente">${esc(c.cliente)}</div><div class="rank-dir">${esc(displayAddressFor(c.cliente, c.direccion))} <a class="addr-edit" data-editcli="${esc(c.cliente)}" data-editdir="${esc(displayAddressFor(c.cliente, c.direccion))}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div></td>
             <td class="rank-num">${c.visitas}</td>
             <td class="rank-num">${c.kilos.toLocaleString('es-AR',{maximumFractionDigits:0})} kg</td>
           </tr>`).join('')}
@@ -1066,6 +1123,7 @@ function renderRanking(main){
   main.querySelectorAll('tr[data-cliente]').forEach(el => {
     el.addEventListener('click', () => openClientModal(el.dataset.cliente));
   });
+  wireAddressEdits(main);
 }
 
 function renderCalendario(main){
@@ -1114,13 +1172,14 @@ function openClientModal(cliente){
   const hist = S.historial_clientes[cliente] || [];
   const totalKg = hist.reduce((a,h) => a + h.kilos, 0);
   const dir = (S.top_clientes.find(c => c.cliente === cliente) || {}).direccion || '';
+  const dirMostrada = displayAddressFor(cliente, dir);
   const mapsUrl = mapsUrlFor(cliente);
   const box = document.getElementById('modalBox');
   box.innerHTML = `
     <div class="mb-head">
       <div>
         <div class="mb-title display">${esc(cliente)}</div>
-        <div class="mb-dir">${esc(dir)}${mapsUrl ? ` · <a href="${esc(mapsUrl)}" target="_blank" rel="noopener">🗺 Ver en Google Maps</a>` : ''}</div>
+        <div class="mb-dir">${esc(dirMostrada)} <a class="addr-edit" data-editcli="${esc(cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;" title="Corregir dirección">✏️</a>${mapsUrl ? ` · <a href="${esc(mapsUrl)}" target="_blank" rel="noopener">🗺 Ver en Google Maps</a>` : ''}</div>
       </div>
       <button class="modal-close" id="modalCloseBtn">✕</button>
     </div>
@@ -1136,6 +1195,7 @@ function openClientModal(cliente){
   `;
   document.getElementById('modalOverlay').classList.add('open');
   document.getElementById('modalCloseBtn').addEventListener('click', closeClientModal);
+  wireAddressEdits(box);
 }
 function closeClientModal(){
   document.getElementById('modalOverlay').classList.remove('open');
