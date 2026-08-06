@@ -759,16 +759,28 @@ function renderMain(){
             <div class="sr-cliente">${esc(r.cliente)}</div>
             <div class="sr-dir">${esc(dirMostrada)} ${mapsLinkFor(r.cliente, dirMostrada) ? `<a href="${esc(mapsLinkFor(r.cliente, dirMostrada))}" target="_blank" rel="noopener" style="font-size:11px;text-decoration:none;" title="Ver en Google Maps">🗺</a>` : ''} <a class="addr-edit" data-editcli="${esc(r.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div>
             <div class="sr-routes">
-              ${r.routes.length ? r.routes.map(rt => `<span class="sr-route-tag" data-pidx="${rt.patternIdx}">${esc(rt.trans)} · <span class="z">${esc(rt.zona)}</span></span>`).join('') : '<span class="sr-route-tag" style="opacity:.6;">Sin ruta típica registrada</span>'}
+              ${(() => {
+                // Puede haber más de un patrón distinto con el mismo chofer+zona (rutas "hermanas"
+                // detectadas como formas típicas separadas); para no mostrar la misma etiqueta
+                // repetida, se agrupan por texto visible y se listan todos los patrones agrupados.
+                const byLabel = new Map();
+                r.routes.forEach(rt => {
+                  const label = rt.trans + ' · ' + rt.zona;
+                  if(!byLabel.has(label)) byLabel.set(label, {trans: rt.trans, zona: rt.zona, pidxs: []});
+                  byLabel.get(label).pidxs.push(rt.patternIdx);
+                });
+                const grouped = [...byLabel.values()];
+                return grouped.length ? grouped.map(g => `<span class="sr-route-tag" data-pidxs="${g.pidxs.join(',')}">${esc(g.trans)} · <span class="z">${esc(g.zona)}</span>${g.pidxs.length > 1 ? ` <span style="opacity:.6;">(${g.pidxs.length} variantes)</span>` : ''}</span>`).join('') : '<span class="sr-route-tag" style="opacity:.6;">Sin ruta típica registrada</span>';
+              })()}
             </div>
           </div>
         `;
         }).join('')}
       </div>
     `;
-    main.querySelectorAll('.sr-route-tag[data-pidx]').forEach(el => {
+    main.querySelectorAll('.sr-route-tag[data-pidxs]').forEach(el => {
       el.addEventListener('click', () => {
-        state.pattern = parseInt(el.dataset.pidx);
+        state.pattern = parseInt(el.dataset.pidxs.split(',')[0]);
         state.query = '';
         document.getElementById('searchInput').value = '';
         document.getElementById('shClear').classList.remove('show');
