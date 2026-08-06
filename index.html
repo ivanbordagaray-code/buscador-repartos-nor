@@ -1103,6 +1103,33 @@ function renderRouteDetail(main, p){
   } else {
     mapBtn.style.display = 'none';
   }
+  // Selección de clientes a despachar por hoja de ruta individual: por defecto van todos
+  // seleccionados (como antes), pero se puede destildar los que no salen ese día para que el
+  // link del mapa arme el recorrido solo con los que quedaron tildados.
+  const frSelection = {}; // ri -> Set de índices de parada seleccionados
+
+  function updateFrMapLink(ri){
+    const ruta = p.full_routes[ri];
+    const sel = frSelection[ri];
+    const chosen = ruta.paradas.filter((_,i) => sel.has(i));
+    const mapInfo = buildMapsUrl(chosen);
+    const linkEl = document.getElementById('frMapLink' + ri);
+    const countEl = document.getElementById('frCount' + ri);
+    if(countEl) countEl.textContent = `${chosen.length} de ${ruta.paradas.length} seleccionados`;
+    if(!linkEl) return;
+    if(mapInfo && chosen.length){
+      linkEl.href = mapInfo.url;
+      linkEl.style.pointerEvents = '';
+      linkEl.style.opacity = '';
+      linkEl.textContent = `🗺 Ver en el mapa los seleccionados${mapInfo.truncated ? ' (primeros 11)' : ''}`;
+    } else {
+      linkEl.removeAttribute('href');
+      linkEl.style.pointerEvents = 'none';
+      linkEl.style.opacity = '.5';
+      linkEl.textContent = '🗺 Elegí al menos un cliente';
+    }
+  }
+
   main.querySelectorAll('.fr-item-clickable').forEach(el => {
     el.addEventListener('click', () => {
       const ri = el.dataset.ri;
@@ -1114,17 +1141,42 @@ function renderRouteDetail(main, p){
         el.querySelector('span').textContent = el.querySelector('span').textContent.replace('▾','▸');
       } else {
         const ruta = p.full_routes[ri];
-        const mapInfo = buildMapsUrl(ruta.paradas);
-        const mapLink = mapInfo ? `<div style="margin-bottom:8px;"><a href="${mapInfo.url}" target="_blank" rel="noopener" class="back-btn" style="text-decoration:none;display:inline-block;font-size:11.5px;">🗺 Ver esta ruta en el mapa${mapInfo.truncated ? ' (primeras 11 paradas)' : ''}</a></div>` : '';
-        box.innerHTML = mapLink + ruta.paradas.map((par,i) => `
-          <div class="fr-parada-item">
+        frSelection[ri] = new Set(ruta.paradas.map((_,i) => i)); // todos tildados por defecto
+        box.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+            <a id="frMapLink${ri}" href="#" target="_blank" rel="noopener" class="back-btn" style="text-decoration:none;display:inline-block;font-size:11.5px;">🗺 Ver en el mapa los seleccionados</a>
+            <span id="frCount${ri}" style="font-size:11px;color:var(--muted,#888);"></span>
+            <a class="fr-sel-all" data-ri="${ri}" style="font-size:11px;cursor:pointer;text-decoration:underline;">Todos</a>
+            <a class="fr-sel-none" data-ri="${ri}" style="font-size:11px;cursor:pointer;text-decoration:underline;">Ninguno</a>
+          </div>
+        ` + ruta.paradas.map((par,i) => `
+          <label class="fr-parada-item" style="cursor:pointer;display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" class="fr-parada-check" data-ri="${ri}" data-i="${i}" checked>
             <span class="fp-n">${i+1}</span>
             <span class="fp-cliente">${esc(par.cliente)}</span>
             <span class="fp-dir">${esc(par.direccion)}</span>
-          </div>
+          </label>
         `).join('');
         box.classList.add('open');
         el.querySelector('span').textContent = el.querySelector('span').textContent.replace('▸','▾');
+        box.querySelectorAll('.fr-parada-check').forEach(chk => {
+          chk.addEventListener('change', () => {
+            const i = parseInt(chk.dataset.i);
+            if(chk.checked) frSelection[ri].add(i); else frSelection[ri].delete(i);
+            updateFrMapLink(ri);
+          });
+        });
+        box.querySelector('.fr-sel-all').addEventListener('click', () => {
+          frSelection[ri] = new Set(ruta.paradas.map((_,i) => i));
+          box.querySelectorAll('.fr-parada-check').forEach(chk => chk.checked = true);
+          updateFrMapLink(ri);
+        });
+        box.querySelector('.fr-sel-none').addEventListener('click', () => {
+          frSelection[ri] = new Set();
+          box.querySelectorAll('.fr-parada-check').forEach(chk => chk.checked = false);
+          updateFrMapLink(ri);
+        });
+        updateFrMapLink(ri);
       }
     });
   });
