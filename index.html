@@ -1075,11 +1075,12 @@ function renderRouteDetail(main, p){
         </div>
         <button class="back-btn" id="backBtn">← Volver a patrones</button>
       </div>
-      <div class="rd-meta">Repetido <span>${p.n}</span> veces · <span>${p.ordered_clients.length}</span> paradas típicas · ${esc(p.fechas[0])} → ${esc(p.fechas[p.fechas.length-1])}</div>
-      <div style="margin-bottom:14px;"><a class="back-btn" id="mapPatternBtn" style="text-decoration:none;display:inline-block;" target="_blank" rel="noopener">🗺 Ver ruteo típico en el mapa</a></div>
+      <div class="rd-meta">Repetido <span>${p.n}</span> veces · <span>${p.ordered_clients.length}</span> clientes distintos en total (máx. <span>${Math.max(...p.full_routes.map(r=>r.paradas.length))}</span> paradas en un mismo reparto) · ${esc(p.fechas[0])} → ${esc(p.fechas[p.fechas.length-1])}</div>
+      <div class="empty-state" style="padding:6px 0;font-size:12px;">La lista de abajo junta TODOS los clientes que aparecieron en alguno de los ${p.n} repartos de este patrón — ningún reparto individual los tiene a todos. Para ver y seleccionar los de un día puntual, abrí "hojas de ruta individuales" más abajo.</div>
+      <div style="margin-bottom:14px;"><a class="back-btn" id="mapPatternBtn" style="text-decoration:none;display:inline-block;" target="_blank" rel="noopener">🗺 Ver unión de clientes en el mapa</a></div>
       <div class="route-line">
-        ${p.ordered_clients.map((c,i) => { const dirMostrada = displayAddressFor(c.cliente, c.direccion); const mapsUrl = mapsUrlFor(c.cliente, dirMostrada); return `
-          <div class="stop">
+        ${p.ordered_clients.map((c,i) => { const dirMostrada = displayAddressFor(c.cliente, c.direccion); const mapsUrl = mapsUrlFor(c.cliente, dirMostrada); const rare = c.veces < p.n * 0.4; return `
+          <div class="stop" style="${rare ? 'opacity:.55;' : ''}">
             <div class="stop-pin">${i+1}</div>
             <div class="stop-body">
               <div>
