@@ -471,7 +471,7 @@
     <input id="searchInput" type="text" placeholder="Ej: LACTEAR, CENCOSUD, Moreno..." autocomplete="off">
     <span class="sh-clear" id="shClear">✕</span>
   </div>
-  <div class="sh-hint">Escribí al menos 3 caracteres · también podés navegar por chofer en el panel de la izquierda</div>
+  <div class="sh-hint">Escribí al menos 3 caracteres</div>
 </section>
 
 <nav class="tabbar">
@@ -794,48 +794,12 @@ function renderMain(){
   if(state.tab === 'abasto'){ renderAbasto(main); return; }
   if(state.tab === 'direcciones'){ renderDireccionesProblema(main); return; }
 
-  const patterns = filteredPatterns();
-  const zonas = getZonasForDriver();
-
+  // Pantalla de inicio: solo el buscador, sin listar choferes ni patrones.
   main.innerHTML = `
-    <div class="content-head">
-      <h1 class="display">${state.driver ? esc(state.driver) : 'Todos los patrones'}</h1>
-      <div class="sub">${patterns.length} patrón(es) de recorrido recurrente</div>
+    <div class="empty-state" style="padding:60px 0;text-align:center;font-size:13.5px;">
+      Escribí un cliente, dirección o zona arriba para ver su reparto probable.
     </div>
-    <div class="zone-filters" id="zoneFilters">
-      ${zonas.map(z => `<span class="zone-chip ${state.zona===z?'active':''}" data-zona="${esc(z)}">${esc(z)}</span>`).join('')}
-      ${zonas.length ? `<span class="zone-chip ${!state.zona?'active':''}" data-zona="">TODAS</span>` : ''}
-    </div>
-    <div class="pattern-grid">
-      ${patterns.map((p) => `
-        <div class="pattern-card" data-pidx="${DATA.patrones.indexOf(p)}" tabindex="0">
-          <div class="pc-top">
-            <div class="pc-trans">${esc(p.trans)}</div>
-            <div class="pc-n">${p.n}×</div>
-          </div>
-          <div class="pc-zona">${esc(p.zona || 'SIN ZONA')}</div>
-          <div class="pc-stats">
-            <span>${p.ordered_clients.length} paradas</span>
-            <span>${esc(p.fechas[0])} → ${esc(p.fechas[p.fechas.length-1])}</span>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-    ${patterns.length === 0 ? '<div class="empty-state">No hay patrones para este filtro</div>' : ''}
   `;
-
-  main.querySelectorAll('.zone-chip').forEach(el => {
-    el.addEventListener('click', () => {
-      state.zona = el.dataset.zona || null;
-      renderAll();
-    });
-  });
-  main.querySelectorAll('.pattern-card').forEach(el => {
-    el.addEventListener('click', () => {
-      state.pattern = parseInt(el.dataset.pidx);
-      renderAll();
-    });
-  });
 }
 
 const ORIGEN_NOR = 'Camino General Belgrano 2299, Argentina';
@@ -1066,7 +1030,7 @@ function renderRouteDetail(main, p){
         <button class="back-btn" id="backBtn">← Volver a patrones</button>
       </div>
       <div class="rd-meta">Repetido <span>${p.n}</span> veces · <span>${p.ordered_clients.length}</span> clientes distintos en total · ${esc(p.fechas[0])} → ${esc(p.fechas[p.fechas.length-1])}</div>
-      <div class="empty-state" style="padding:6px 0;font-size:12px;">Este es el reparto probable armado con todos los clientes que aparecieron alguna vez en este patrón. Tildá los que correspondan hoy comparando con las boletas físicas; el link del mapa se arma solo con los tildados.</div>
+      <div class="empty-state" style="padding:6px 0;font-size:12px;">Este es el reparto probable armado con todos los clientes que aparecieron alguna vez en este patrón. Tildá los que correspondan hoy comparando con las boletas físicas; el link del mapa se arma solo con los tildados. Tocá "X/N veces" en cualquier parada para ver en qué fechas apareció.</div>
       <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 14px;">
         <a id="rdMapLink" href="#" target="_blank" rel="noopener" class="back-btn" style="text-decoration:none;display:inline-block;">🗺 Ver en el mapa los seleccionados</a>
         <span id="rdCount" style="font-size:12px;color:var(--muted,#888);"></span>
@@ -1075,7 +1039,7 @@ function renderRouteDetail(main, p){
       </div>
       <div class="route-line">
         ${p.ordered_clients.map((c,i) => { const dirMostrada = displayAddressFor(c.cliente, c.direccion); return `
-          <div class="stop" style="display:flex;align-items:center;gap:10px;">
+          <div class="stop" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
             <input type="checkbox" class="rd-stop-check" data-i="${i}" checked style="width:18px;height:18px;flex:none;">
             <div class="stop-pin">${i+1}</div>
             <div class="stop-body" style="flex:1;">
@@ -1083,8 +1047,9 @@ function renderRouteDetail(main, p){
                 <div class="stop-cliente" data-q="${esc(c.cliente)}">${esc(c.cliente)}</div>
                 <div class="stop-direccion">${esc(dirMostrada)} ${mapsLinkFor(c.cliente, dirMostrada) ? `<a href="${esc(mapsLinkFor(c.cliente, dirMostrada))}" target="_blank" rel="noopener" style="font-size:11px;text-decoration:none;" title="Ver en Google Maps">🗺</a>` : ''} <a class="addr-edit" data-editcli="${esc(c.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div>
               </div>
-              <div class="stop-veces">${c.veces}/${p.n} veces</div>
+              <div class="stop-veces stop-veces-click" data-i="${i}" style="cursor:pointer;" title="Ver en qué repartos apareció">${c.veces}/${p.n} veces <span class="stop-veces-arrow">▸</span></div>
             </div>
+            <div class="stop-occ" id="stopOcc${i}" style="display:none;flex:1 1 100%;margin:2px 0 0 30px;padding:8px 12px;background:var(--panel-3,#f2f2f2);border-radius:8px;font-size:12px;"></div>
           </div>
         `;
         }).join('')}
@@ -1147,6 +1112,33 @@ function renderRouteDetail(main, p){
       renderAll();
     });
   });
+
+  // Al tocar "X/N veces" se muestra en qué hojas de ruta concretas (fecha + número) apareció ese
+  // cliente dentro de este patrón, para poder chequearlo contra una boleta física puntual.
+  main.querySelectorAll('.stop-veces-click').forEach(el => {
+    el.addEventListener('click', () => {
+      const i = el.dataset.i;
+      const box = document.getElementById('stopOcc' + i);
+      const arrow = el.querySelector('.stop-veces-arrow');
+      const isOpen = box.style.display !== 'none';
+      if(isOpen){
+        box.style.display = 'none';
+        if(arrow) arrow.textContent = '▸';
+        return;
+      }
+      const cliente = p.ordered_clients[i].cliente;
+      const occ = p.full_routes
+        .filter(r => r.paradas.some(par => par.cliente === cliente))
+        .map(r => ({fecha: r.fecha, nro: r.nro}));
+      box.innerHTML = occ.length ? (
+        `<div style="font-weight:600;margin-bottom:4px;">Apareció en ${occ.length} hoja(s) de ruta:</div>` +
+        occ.map(o => `<div>· ${esc(o.fecha)} — hoja de ruta #${esc(String(o.nro))}</div>`).join('')
+      ) : '<div>No encontré el detalle de fechas para este cliente.</div>';
+      box.style.display = 'block';
+      if(arrow) arrow.textContent = '▾';
+    });
+  });
+
   wireAddressEdits(main);
 }
 
@@ -1622,11 +1614,9 @@ function renderAbasto(main){
 }
 
 function renderAll(){
+  // El panel de choferes ya no se muestra: la página de inicio es solo el buscador.
   const aside = document.getElementById('driversAside');
-  const searchActive = state.query && state.query.length >= 3;
-  const showAside = state.tab === 'rutas' && !searchActive && state.pattern === null;
-  aside.style.display = showAside ? '' : 'none';
-  renderDrivers();
+  aside.style.display = 'none';
   renderMain();
 }
 
