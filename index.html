@@ -1076,7 +1076,7 @@ function renderRouteDetail(main, p){
         <button class="back-btn" id="backBtn">← Volver a patrones</button>
       </div>
       <div class="rd-meta">Repetido <span>${p.n}</span> veces · <span>${p.ordered_clients.length}</span> clientes distintos en total (máx. <span>${Math.max(...p.full_routes.map(r=>r.paradas.length))}</span> paradas en un mismo reparto) · ${esc(p.fechas[0])} → ${esc(p.fechas[p.fechas.length-1])}</div>
-      <div class="empty-state" style="padding:6px 0;font-size:12px;">La lista de abajo junta TODOS los clientes que aparecieron en alguno de los ${p.n} repartos de este patrón — ningún reparto individual los tiene a todos. Para ver y seleccionar los de un día puntual, abrí "hojas de ruta individuales" más abajo.</div>
+      <div class="empty-state" style="padding:6px 0;font-size:12px;">La lista de abajo junta TODOS los clientes que aparecieron en alguno de los ${p.n} repartos de este patrón — ningún reparto individual los tiene a todos, por eso acá no se puede tildar. Más abajo del todo ya está abierto el reparto más reciente con los tildes para elegir a quién despachar.</div>
       <div style="margin-bottom:14px;"><a class="back-btn" id="mapPatternBtn" style="text-decoration:none;display:inline-block;" target="_blank" rel="noopener">🗺 Ver unión de clientes en el mapa</a></div>
       <div class="route-line">
         ${p.ordered_clients.map((c,i) => { const dirMostrada = displayAddressFor(c.cliente, c.direccion); const mapsUrl = mapsUrlFor(c.cliente, dirMostrada); const rare = c.veces < p.n * 0.4; return `
@@ -1143,54 +1143,61 @@ function renderRouteDetail(main, p){
     }
   }
 
+  function closeFrItem(ri){
+    const el = main.querySelector(`.fr-item-clickable[data-ri="${ri}"]`);
+    const box = document.getElementById('frParadas' + ri);
+    box.classList.remove('open');
+    box.innerHTML = '';
+    if(el) el.querySelector('span').textContent = el.querySelector('span').textContent.replace('▾','▸');
+  }
+
+  function openFrItem(ri){
+    const el = main.querySelector(`.fr-item-clickable[data-ri="${ri}"]`);
+    const box = document.getElementById('frParadas' + ri);
+    const ruta = p.full_routes[ri];
+    frSelection[ri] = new Set(ruta.paradas.map((_,i) => i)); // todos tildados por defecto
+    box.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+        <a id="frMapLink${ri}" href="#" target="_blank" rel="noopener" class="back-btn" style="text-decoration:none;display:inline-block;font-size:11.5px;">🗺 Ver en el mapa los seleccionados</a>
+        <span id="frCount${ri}" style="font-size:11px;color:var(--muted,#888);"></span>
+        <a class="fr-sel-all" data-ri="${ri}" style="font-size:11px;cursor:pointer;text-decoration:underline;">Todos</a>
+        <a class="fr-sel-none" data-ri="${ri}" style="font-size:11px;cursor:pointer;text-decoration:underline;">Ninguno</a>
+      </div>
+    ` + ruta.paradas.map((par,i) => `
+      <label class="fr-parada-item" style="cursor:pointer;display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" class="fr-parada-check" data-ri="${ri}" data-i="${i}" checked>
+        <span class="fp-n">${i+1}</span>
+        <span class="fp-cliente">${esc(par.cliente)}</span>
+        <span class="fp-dir">${esc(par.direccion)}</span>
+      </label>
+    `).join('');
+    box.classList.add('open');
+    if(el) el.querySelector('span').textContent = el.querySelector('span').textContent.replace('▸','▾');
+    box.querySelectorAll('.fr-parada-check').forEach(chk => {
+      chk.addEventListener('change', () => {
+        const i = parseInt(chk.dataset.i);
+        if(chk.checked) frSelection[ri].add(i); else frSelection[ri].delete(i);
+        updateFrMapLink(ri);
+      });
+    });
+    box.querySelector('.fr-sel-all').addEventListener('click', () => {
+      frSelection[ri] = new Set(ruta.paradas.map((_,i) => i));
+      box.querySelectorAll('.fr-parada-check').forEach(chk => chk.checked = true);
+      updateFrMapLink(ri);
+    });
+    box.querySelector('.fr-sel-none').addEventListener('click', () => {
+      frSelection[ri] = new Set();
+      box.querySelectorAll('.fr-parada-check').forEach(chk => chk.checked = false);
+      updateFrMapLink(ri);
+    });
+    updateFrMapLink(ri);
+  }
+
   main.querySelectorAll('.fr-item-clickable').forEach(el => {
     el.addEventListener('click', () => {
       const ri = el.dataset.ri;
       const box = document.getElementById('frParadas' + ri);
-      const isOpen = box.classList.contains('open');
-      if(isOpen){
-        box.classList.remove('open');
-        box.innerHTML = '';
-        el.querySelector('span').textContent = el.querySelector('span').textContent.replace('▾','▸');
-      } else {
-        const ruta = p.full_routes[ri];
-        frSelection[ri] = new Set(ruta.paradas.map((_,i) => i)); // todos tildados por defecto
-        box.innerHTML = `
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
-            <a id="frMapLink${ri}" href="#" target="_blank" rel="noopener" class="back-btn" style="text-decoration:none;display:inline-block;font-size:11.5px;">🗺 Ver en el mapa los seleccionados</a>
-            <span id="frCount${ri}" style="font-size:11px;color:var(--muted,#888);"></span>
-            <a class="fr-sel-all" data-ri="${ri}" style="font-size:11px;cursor:pointer;text-decoration:underline;">Todos</a>
-            <a class="fr-sel-none" data-ri="${ri}" style="font-size:11px;cursor:pointer;text-decoration:underline;">Ninguno</a>
-          </div>
-        ` + ruta.paradas.map((par,i) => `
-          <label class="fr-parada-item" style="cursor:pointer;display:flex;align-items:center;gap:8px;">
-            <input type="checkbox" class="fr-parada-check" data-ri="${ri}" data-i="${i}" checked>
-            <span class="fp-n">${i+1}</span>
-            <span class="fp-cliente">${esc(par.cliente)}</span>
-            <span class="fp-dir">${esc(par.direccion)}</span>
-          </label>
-        `).join('');
-        box.classList.add('open');
-        el.querySelector('span').textContent = el.querySelector('span').textContent.replace('▸','▾');
-        box.querySelectorAll('.fr-parada-check').forEach(chk => {
-          chk.addEventListener('change', () => {
-            const i = parseInt(chk.dataset.i);
-            if(chk.checked) frSelection[ri].add(i); else frSelection[ri].delete(i);
-            updateFrMapLink(ri);
-          });
-        });
-        box.querySelector('.fr-sel-all').addEventListener('click', () => {
-          frSelection[ri] = new Set(ruta.paradas.map((_,i) => i));
-          box.querySelectorAll('.fr-parada-check').forEach(chk => chk.checked = true);
-          updateFrMapLink(ri);
-        });
-        box.querySelector('.fr-sel-none').addEventListener('click', () => {
-          frSelection[ri] = new Set();
-          box.querySelectorAll('.fr-parada-check').forEach(chk => chk.checked = false);
-          updateFrMapLink(ri);
-        });
-        updateFrMapLink(ri);
-      }
+      if(box.classList.contains('open')) closeFrItem(ri); else openFrItem(ri);
     });
   });
   document.getElementById('frToggle').addEventListener('click', (e) => {
@@ -1198,6 +1205,13 @@ function renderRouteDetail(main, p){
     e.target.textContent = e.target.textContent.startsWith('▸') ?
       e.target.textContent.replace('▸','▾') : e.target.textContent.replace('▾','▸');
   });
+  // Para que se pueda seleccionar clientes sin tener que ir clickeando: se abre directo, ya
+  // desplegado, el reparto más reciente (el último de la lista).
+  if(p.full_routes.length){
+    document.getElementById('frList').classList.add('open');
+    document.getElementById('frToggle').textContent = document.getElementById('frToggle').textContent.replace('▸','▾');
+    openFrItem(p.full_routes.length - 1);
+  }
   main.querySelectorAll('.stop-cliente').forEach(el => {
     el.addEventListener('click', () => {
       state.query = el.dataset.q;
@@ -1401,6 +1415,26 @@ function renderClientesTab(main){
   wireAddressEdits(main);
 }
 
+// Clientes cuyo nombre es solo una palabra genérica de rubro (sin nombre propio ni razón social
+// específica) — no se pueden fusionar con nada porque no hay con qué, pero conviene identificarlos
+// a mano ya que en el sistema quedaron cargados incompletos.
+const GENERIC_NAME_WORDS = new Set(['DISTRIBUIDORA','DISTRIBUIDOR','DISTRIBUCION','LOGISTICA','ALMACEN',
+  'COMERCIAL','SUPERMERCADO','AUTOSERVICIO','MAYORISTA','DEPOSITO','QUESERIA','FIAMBRERIA','GRANJA',
+  'PANADERIA','ALMACEN','MERCADO','TRANSPORTE','SERVICIOS','EMPRESA','NEGOCIO','LOCAL']);
+function stripAccentsJS(s){ return s.normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function isGenericIncompleteName(name){
+  const words = stripAccentsJS(name).toUpperCase().replace(/[.,()]/g,' ').split(/\s+/).filter(Boolean);
+  if(!words.length) return false;
+  return words.every(w => GENERIC_NAME_WORDS.has(w) || w.length <= 1);
+}
+function nombresIncompletos(){
+  const totales = DATA.stats.cliente_totales || {};
+  return Object.keys(totales)
+    .filter(isGenericIncompleteName)
+    .map(cliente => ({cliente, ...totales[cliente]}))
+    .sort((a,b) => b.visitas - a.visitas);
+}
+
 function renderDireccionesProblema(main){
   const items = Object.entries(direccionesProblema).map(([original, info]) => ({original, ...info}));
   const motivoLabel = {
@@ -1408,6 +1442,7 @@ function renderDireccionesProblema(main){
     'aproximada': 'Aproximada (sin altura)',
     'solo_localidad': 'Solo localidad',
   };
+  const incompletos = nombresIncompletos();
   main.innerHTML = `
     <div class="content-head">
       <h1 class="display">Direcciones a revisar</h1>
@@ -1436,6 +1471,25 @@ function renderDireccionesProblema(main){
           </div>
         `).join('')}
       </div>
+    `}
+    <div class="content-head" style="margin-top:32px;">
+      <h1 class="display" style="font-size:20px;">Nombres de cliente incompletos</h1>
+      <div class="sub">Clientes cargados solo con una palabra de rubro genérica (ej. "Distribuidora"), sin nombre propio. No se pueden fusionar automáticamente con nada porque no hay con qué compararlos — identificalos vos por la dirección y avisá para corregir el nombre en el origen.</div>
+    </div>
+    ${incompletos.length === 0 ? `<div class="empty-state">No encontré clientes con nombre incompleto.</div>` : `
+      <table class="rank-table">
+        <thead><tr><th>Nombre</th><th>Dirección</th><th>Visitas</th><th>Kilos</th></tr></thead>
+        <tbody>
+          ${incompletos.map(it => `
+            <tr>
+              <td><div class="rank-cliente">${esc(it.cliente)}</div></td>
+              <td><div class="rank-dir">${esc(it.direccion) || '<span style="color:var(--danger);">Sin dirección</span>'}</div></td>
+              <td>${it.visitas}</td>
+              <td>${it.kilos.toLocaleString('es-AR',{maximumFractionDigits:0})}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
     `}
   `;
 
