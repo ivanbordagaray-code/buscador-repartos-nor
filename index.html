@@ -476,11 +476,6 @@
 
 <nav class="tabbar">
   <div class="tab" data-tab="rutas">Rutas</div>
-  <div class="tab" data-tab="clientes">Clientes</div>
-  <div class="tab" data-tab="dashboard">Dashboard</div>
-  <div class="tab" data-tab="ranking">Ranking clientes</div>
-  <div class="tab" data-tab="calendario">Calendario</div>
-  <div class="tab" data-tab="choferes">Comparador choferes</div>
   <div class="tab" data-tab="abasto">Abasto / Bromatología</div>
   <div class="tab" data-tab="direcciones">Direcciones a revisar <span id="dirProblemCount" class="tab-badge" style="display:none;">0</span></div>
 </nav>
@@ -796,11 +791,6 @@ function renderMain(){
     return;
   }
 
-  if(state.tab === 'clientes'){ renderClientesTab(main); return; }
-  if(state.tab === 'dashboard'){ renderDashboard(main); return; }
-  if(state.tab === 'ranking'){ renderRanking(main); return; }
-  if(state.tab === 'calendario'){ renderCalendario(main); return; }
-  if(state.tab === 'choferes'){ renderComparador(main); return; }
   if(state.tab === 'abasto'){ renderAbasto(main); return; }
   if(state.tab === 'direcciones'){ renderDireccionesProblema(main); return; }
 
@@ -1075,14 +1065,20 @@ function renderRouteDetail(main, p){
         </div>
         <button class="back-btn" id="backBtn">← Volver a patrones</button>
       </div>
-      <div class="rd-meta">Repetido <span>${p.n}</span> veces · <span>${p.ordered_clients.length}</span> clientes distintos en total (máx. <span>${Math.max(...p.full_routes.map(r=>r.paradas.length))}</span> paradas en un mismo reparto) · ${esc(p.fechas[0])} → ${esc(p.fechas[p.fechas.length-1])}</div>
-      <div class="empty-state" style="padding:6px 0;font-size:12px;">La lista de abajo junta TODOS los clientes que aparecieron en alguno de los ${p.n} repartos de este patrón — ningún reparto individual los tiene a todos, por eso acá no se puede tildar. Más abajo del todo ya está abierto el reparto más reciente con los tildes para elegir a quién despachar.</div>
-      <div style="margin-bottom:14px;"><a class="back-btn" id="mapPatternBtn" style="text-decoration:none;display:inline-block;" target="_blank" rel="noopener">🗺 Ver unión de clientes en el mapa</a></div>
+      <div class="rd-meta">Repetido <span>${p.n}</span> veces · <span>${p.ordered_clients.length}</span> clientes distintos en total · ${esc(p.fechas[0])} → ${esc(p.fechas[p.fechas.length-1])}</div>
+      <div class="empty-state" style="padding:6px 0;font-size:12px;">Este es el reparto probable armado con todos los clientes que aparecieron alguna vez en este patrón. Tildá los que correspondan hoy comparando con las boletas físicas; el link del mapa se arma solo con los tildados.</div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:10px 0 14px;">
+        <a id="rdMapLink" href="#" target="_blank" rel="noopener" class="back-btn" style="text-decoration:none;display:inline-block;">🗺 Ver en el mapa los seleccionados</a>
+        <span id="rdCount" style="font-size:12px;color:var(--muted,#888);"></span>
+        <a id="rdSelAll" style="font-size:12px;cursor:pointer;text-decoration:underline;">Todos</a>
+        <a id="rdSelNone" style="font-size:12px;cursor:pointer;text-decoration:underline;">Ninguno</a>
+      </div>
       <div class="route-line">
-        ${p.ordered_clients.map((c,i) => { const dirMostrada = displayAddressFor(c.cliente, c.direccion); const mapsUrl = mapsUrlFor(c.cliente, dirMostrada); const rare = c.veces < p.n * 0.4; return `
-          <div class="stop" style="${rare ? 'opacity:.55;' : ''}">
+        ${p.ordered_clients.map((c,i) => { const dirMostrada = displayAddressFor(c.cliente, c.direccion); return `
+          <div class="stop" style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" class="rd-stop-check" data-i="${i}" checked style="width:18px;height:18px;flex:none;">
             <div class="stop-pin">${i+1}</div>
-            <div class="stop-body">
+            <div class="stop-body" style="flex:1;">
               <div>
                 <div class="stop-cliente" data-q="${esc(c.cliente)}">${esc(c.cliente)}</div>
                 <div class="stop-direccion">${esc(dirMostrada)} ${mapsLinkFor(c.cliente, dirMostrada) ? `<a href="${esc(mapsLinkFor(c.cliente, dirMostrada))}" target="_blank" rel="noopener" style="font-size:11px;text-decoration:none;" title="Ver en Google Maps">🗺</a>` : ''} <a class="addr-edit" data-editcli="${esc(c.cliente)}" data-editdir="${esc(dirMostrada)}" style="cursor:pointer;font-size:11px;" title="Corregir dirección">✏️</a></div>
@@ -1093,43 +1089,23 @@ function renderRouteDetail(main, p){
         `;
         }).join('')}
       </div>
-      <div class="fr-toggle" id="frToggle">▸ Ver las ${p.full_routes.length} hojas de ruta individuales</div>
-      <div class="fr-list" id="frList">
-        ${p.full_routes.map((r,ri) => `
-          <div class="fr-item fr-item-clickable" data-ri="${ri}">
-            <span>▸ <b>#${esc(r.nro)}</b> — ${esc(r.fecha)} — ${r.paradas.length} paradas</span>
-          </div>
-          <div class="fr-paradas" id="frParadas${ri}"></div>
-        `).join('')}
-      </div>
     </div>
   `;
   document.getElementById('backBtn').addEventListener('click', () => {
     state.pattern = null;
     renderAll();
   });
-  const mapInfoPattern = buildMapsUrl(p.ordered_clients);
-  const mapBtn = document.getElementById('mapPatternBtn');
-  if(mapInfoPattern){
-    mapBtn.href = mapInfoPattern.url;
-    if(mapInfoPattern.truncated) mapBtn.textContent = '🗺 Ver ruteo típico en el mapa (primeras 11 paradas)';
-  } else {
-    mapBtn.style.display = 'none';
-  }
-  // Selección de clientes a despachar por hoja de ruta individual: por defecto van todos
-  // seleccionados (como antes), pero se puede destildar los que no salen ese día para que el
-  // link del mapa arme el recorrido solo con los que quedaron tildados.
-  const frSelection = {}; // ri -> Set de índices de parada seleccionados
 
-  function updateFrMapLink(ri){
-    const ruta = p.full_routes[ri];
-    const sel = frSelection[ri];
-    const chosen = ruta.paradas.filter((_,i) => sel.has(i));
+  // Selección de clientes a despachar sobre la lista única: por defecto van todos tildados,
+  // se destildan los que no correspondan hoy y el link del mapa arma el recorrido con el resto.
+  const rdSelection = new Set(p.ordered_clients.map((_,i) => i));
+
+  function updateRdMapLink(){
+    const chosen = p.ordered_clients.filter((_,i) => rdSelection.has(i));
     const mapInfo = buildMapsUrl(chosen);
-    const linkEl = document.getElementById('frMapLink' + ri);
-    const countEl = document.getElementById('frCount' + ri);
-    if(countEl) countEl.textContent = `${chosen.length} de ${ruta.paradas.length} seleccionados`;
-    if(!linkEl) return;
+    const linkEl = document.getElementById('rdMapLink');
+    const countEl = document.getElementById('rdCount');
+    if(countEl) countEl.textContent = `${chosen.length} de ${p.ordered_clients.length} seleccionados`;
     if(mapInfo && chosen.length){
       linkEl.href = mapInfo.url;
       linkEl.style.pointerEvents = '';
@@ -1143,75 +1119,25 @@ function renderRouteDetail(main, p){
     }
   }
 
-  function closeFrItem(ri){
-    const el = main.querySelector(`.fr-item-clickable[data-ri="${ri}"]`);
-    const box = document.getElementById('frParadas' + ri);
-    box.classList.remove('open');
-    box.innerHTML = '';
-    if(el) el.querySelector('span').textContent = el.querySelector('span').textContent.replace('▾','▸');
-  }
-
-  function openFrItem(ri){
-    const el = main.querySelector(`.fr-item-clickable[data-ri="${ri}"]`);
-    const box = document.getElementById('frParadas' + ri);
-    const ruta = p.full_routes[ri];
-    frSelection[ri] = new Set(ruta.paradas.map((_,i) => i)); // todos tildados por defecto
-    box.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
-        <a id="frMapLink${ri}" href="#" target="_blank" rel="noopener" class="back-btn" style="text-decoration:none;display:inline-block;font-size:11.5px;">🗺 Ver en el mapa los seleccionados</a>
-        <span id="frCount${ri}" style="font-size:11px;color:var(--muted,#888);"></span>
-        <a class="fr-sel-all" data-ri="${ri}" style="font-size:11px;cursor:pointer;text-decoration:underline;">Todos</a>
-        <a class="fr-sel-none" data-ri="${ri}" style="font-size:11px;cursor:pointer;text-decoration:underline;">Ninguno</a>
-      </div>
-    ` + ruta.paradas.map((par,i) => `
-      <label class="fr-parada-item" style="cursor:pointer;display:flex;align-items:center;gap:8px;">
-        <input type="checkbox" class="fr-parada-check" data-ri="${ri}" data-i="${i}" checked>
-        <span class="fp-n">${i+1}</span>
-        <span class="fp-cliente">${esc(par.cliente)}</span>
-        <span class="fp-dir">${esc(par.direccion)}</span>
-      </label>
-    `).join('');
-    box.classList.add('open');
-    if(el) el.querySelector('span').textContent = el.querySelector('span').textContent.replace('▸','▾');
-    box.querySelectorAll('.fr-parada-check').forEach(chk => {
-      chk.addEventListener('change', () => {
-        const i = parseInt(chk.dataset.i);
-        if(chk.checked) frSelection[ri].add(i); else frSelection[ri].delete(i);
-        updateFrMapLink(ri);
-      });
-    });
-    box.querySelector('.fr-sel-all').addEventListener('click', () => {
-      frSelection[ri] = new Set(ruta.paradas.map((_,i) => i));
-      box.querySelectorAll('.fr-parada-check').forEach(chk => chk.checked = true);
-      updateFrMapLink(ri);
-    });
-    box.querySelector('.fr-sel-none').addEventListener('click', () => {
-      frSelection[ri] = new Set();
-      box.querySelectorAll('.fr-parada-check').forEach(chk => chk.checked = false);
-      updateFrMapLink(ri);
-    });
-    updateFrMapLink(ri);
-  }
-
-  main.querySelectorAll('.fr-item-clickable').forEach(el => {
-    el.addEventListener('click', () => {
-      const ri = el.dataset.ri;
-      const box = document.getElementById('frParadas' + ri);
-      if(box.classList.contains('open')) closeFrItem(ri); else openFrItem(ri);
+  main.querySelectorAll('.rd-stop-check').forEach(chk => {
+    chk.addEventListener('change', () => {
+      const i = parseInt(chk.dataset.i);
+      if(chk.checked) rdSelection.add(i); else rdSelection.delete(i);
+      updateRdMapLink();
     });
   });
-  document.getElementById('frToggle').addEventListener('click', (e) => {
-    document.getElementById('frList').classList.toggle('open');
-    e.target.textContent = e.target.textContent.startsWith('▸') ?
-      e.target.textContent.replace('▸','▾') : e.target.textContent.replace('▾','▸');
+  document.getElementById('rdSelAll').addEventListener('click', () => {
+    p.ordered_clients.forEach((_,i) => rdSelection.add(i));
+    main.querySelectorAll('.rd-stop-check').forEach(chk => chk.checked = true);
+    updateRdMapLink();
   });
-  // Para que se pueda seleccionar clientes sin tener que ir clickeando: se abre directo, ya
-  // desplegado, el reparto más reciente (el último de la lista).
-  if(p.full_routes.length){
-    document.getElementById('frList').classList.add('open');
-    document.getElementById('frToggle').textContent = document.getElementById('frToggle').textContent.replace('▸','▾');
-    openFrItem(p.full_routes.length - 1);
-  }
+  document.getElementById('rdSelNone').addEventListener('click', () => {
+    rdSelection.clear();
+    main.querySelectorAll('.rd-stop-check').forEach(chk => chk.checked = false);
+    updateRdMapLink();
+  });
+  updateRdMapLink();
+
   main.querySelectorAll('.stop-cliente').forEach(el => {
     el.addEventListener('click', () => {
       state.query = el.dataset.q;
