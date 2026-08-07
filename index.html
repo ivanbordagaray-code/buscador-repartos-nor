@@ -640,12 +640,14 @@ function mapsUrlFor(clienteNombre, direccion){
 // guardado exacto para ESA dirección lo usamos (mapsUrlFor), si no armamos una búsqueda de Maps
 // con la dirección tal cual.
 function mapsLinkFor(clienteNombre, direccion){
-  const exact = mapsUrlFor(clienteNombre, direccion);
-  if(exact) return exact;
+  // Se usa siempre el link de búsqueda (en vez del "lugar exacto" guardado con ID de Google) porque
+  // ese formato es el que se abre como vista previa dentro de la página en vez de mandarte de una a
+  // la app de Google Maps. Si no hay dirección de texto para armar la búsqueda, como último recurso
+  // se usa el lugar exacto guardado (mejor eso que no tener link).
   if(direccion && direccion.trim()){
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(direccion.trim() + ', Argentina')}`;
   }
-  return null;
+  return mapsUrlFor(clienteNombre, direccion);
 }
 
 // ---------- Correcciones de dirección a mano (guardadas en Google Sheets) ----------
