@@ -471,7 +471,7 @@
     <input id="searchInput" type="text" placeholder="Ej: LACTEAR, CENCOSUD, Moreno..." autocomplete="off">
     <span class="sh-clear" id="shClear">✕</span>
   </div>
-  <div class="sh-hint">Escribí al menos 3 caracteres</div>
+  <div class="sh-hint" id="shHint">Escribí al menos 3 caracteres</div>
 </section>
 
 <nav class="tabbar">
@@ -1613,10 +1613,19 @@ function renderAbasto(main){
   wireAddressEdits(main);
 }
 
+function updateSearchHint(){
+  // El aviso "Escribí al menos 3 caracteres" solo tiene sentido antes de una búsqueda válida.
+  const hint = document.getElementById('shHint');
+  if(!hint) return;
+  const q = (state.query || '').trim();
+  hint.style.display = q.length >= 3 ? 'none' : '';
+}
+
 function renderAll(){
   // El panel de choferes ya no se muestra: la página de inicio es solo el buscador.
   const aside = document.getElementById('driversAside');
   aside.style.display = 'none';
+  updateSearchHint();
   renderMain();
 }
 
