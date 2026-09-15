@@ -39,7 +39,7 @@
     "resp": "Sabrina",
     "cliente": "Bocamasso",
     "accion": "El cliente no pidió el código 1115/1",
-    "estado": "Resuelto",
+    "estado": "Sin resolver",
     "resolucion": "",
     "obs": "En el momento de la descarga el cliente rechaza un producto no pedido"
   },
