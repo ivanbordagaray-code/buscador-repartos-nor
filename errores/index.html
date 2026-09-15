@@ -28,9 +28,12 @@
   .empty{color:var(--ink-soft);text-align:center;padding:40px 20px;font-size:14px;line-height:1.5;}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px 14px;}
   .card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
-  .client-row{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:6px;}
+  .client-row{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-top:8px;}
+  .client-col{display:flex;flex-direction:column;}
+  .resp-col{display:flex;flex-direction:column;align-items:flex-end;}
+  .col-label{font-family:var(--mono);font-size:10.5px;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.03em;margin-bottom:2px;}
   .client-name{font-size:15px;font-weight:700;color:var(--ink);}
-  .resp-name{font-size:12.5px;color:var(--ink-soft);white-space:nowrap;}
+  .resp-name{font-size:13px;color:var(--ink-soft);white-space:nowrap;}
   .fecha{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);}
   .badge{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:100px;white-space:nowrap;}
   .badge.resuelto{background:var(--green-bg);color:var(--green);}
@@ -314,8 +317,14 @@ function render(){
         <span class="badge ${badgeClass}">${e.estado}</span>
       </div>
       <div class="client-row">
-        <span class="client-name">${e.cliente || '—'}</span>
-        <span class="resp-name">${e.resp || '—'}</span>
+        <div class="client-col">
+          <span class="col-label">Afectado</span>
+          <span class="client-name">${e.cliente || '—'}</span>
+        </div>
+        <div class="resp-col">
+          <span class="col-label">Responsable</span>
+          <span class="resp-name">${e.resp || '—'}</span>
+        </div>
       </div>
       <span class="tipo">${e.tipo}</span>
       <div class="desc">${e.desc}</div>
