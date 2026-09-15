@@ -149,8 +149,8 @@
     "resp": "Carlos",
     "cliente": "Valenzuela",
     "accion": "Controló la boleta y la mercadería no fue",
-    "estado": "Sin resolver",
-    "resolucion": "",
+    "estado": "Resuelto",
+    "resolucion": "La mercadería quedo en guarda y va a ser enviada nuevamente",
     "obs": "Detectado en el momento de la descarga"
   }
 ]
