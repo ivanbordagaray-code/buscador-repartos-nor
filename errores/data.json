@@ -149,7 +149,7 @@
     "resp": "Carlos",
     "cliente": "Valenzuela",
     "accion": "Controló la boleta y la mercadería no fue",
-    "estado": "Resuelto",
+    "estado": "Sin resolver",
     "resolucion": "Se habló con el cliente y se corrigió el control en la próxima entrega.",
     "obs": "Detectado en el momento de la descarga"
   }
