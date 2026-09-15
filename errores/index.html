@@ -54,7 +54,7 @@
     position:fixed; bottom:22px; right:18px;
     width:54px; height:54px; border-radius:50%; background:var(--amber); color:#fff;
     border:none; font-size:28px; line-height:1; box-shadow:0 6px 16px rgba(0,0,0,0.25);
-    cursor:pointer; z-index:6;
+    cursor:pointer; z-index:6; display:none; align-items:center; justify-content:center;
   }
   .gear{
     position:fixed; top:14px; right:14px; z-index:7; width:30px; height:30px;
@@ -283,6 +283,8 @@ async function commitData(message){
 }
 
 function render(){
+  const isEditor = !!getToken();
+  document.getElementById('fabAdd').style.display = isEditor ? 'flex' : 'none';
   const total = errores.length;
   const pendientes = errores.filter(e => e.estado === 'Sin resolver').length;
   document.getElementById('stats').innerHTML = total + ' registrados · <b>' + pendientes + ' sin resolver</b>';
@@ -337,18 +339,21 @@ function render(){
           <span class="label">Cómo se resolvió</span>
           <div class="txt">${e.resolucion}</div>
         </div>` : ''}
-      ${e.estado === 'Resuelto' ? `
+      ${isEditor && e.estado === 'Resuelto' ? `
         <button class="btn ghost" style="margin-top:9px;width:100%;" data-edit-resolucion="${e.id}">
           ${e.resolucion ? 'Editar cómo se resolvió' : 'Agregar cómo se resolvió'}
         </button>
       ` : ''}
+      ${isEditor ? `
       <button class="btn ${e.estado === 'Resuelto' ? 'ghost' : 'primary'}" style="margin-top:9px;width:100%;" data-toggle="${e.id}">
         ${e.estado === 'Resuelto' ? 'Marcar como sin resolver' : 'Marcar como resuelto'}
-      </button>
+      </button>` : ''}
     `;
-    card.querySelector('[data-toggle]').addEventListener('click', () => onToggleClick(e.id));
-    const editBtn = card.querySelector('[data-edit-resolucion]');
-    if(editBtn) editBtn.addEventListener('click', () => openResolveModal(e.id));
+    if(isEditor){
+      card.querySelector('[data-toggle]').addEventListener('click', () => onToggleClick(e.id));
+      const editBtn = card.querySelector('[data-edit-resolucion]');
+      if(editBtn) editBtn.addEventListener('click', () => openResolveModal(e.id));
+    }
     feed.appendChild(card);
   });
 }
@@ -385,6 +390,7 @@ document.getElementById('btnTokenSave').onclick = () => {
   setToken(document.getElementById('f_token').value.trim());
   tokenBackdrop.classList.add('hidden');
   updateFooter();
+  render();
   showToast('Token guardado en este dispositivo');
 };
 
