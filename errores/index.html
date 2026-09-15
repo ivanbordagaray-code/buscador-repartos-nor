@@ -328,10 +328,10 @@ function render(){
       </div>
       <span class="tipo">${e.tipo}</span>
       <div class="desc">${e.desc}</div>
+      ${e.obs ? `
       <div class="extra">
-        <div class="extra-row"><span class="label">Acción correctiva</span>${e.accion || '—'}</div>
-        ${e.obs ? `<div class="extra-row"><span class="label">Observaciones</span>${e.obs}</div>` : ''}
-      </div>
+        <div class="extra-row"><span class="label">Observaciones</span>${e.obs}</div>
+      </div>` : ''}
       ${e.estado === 'Resuelto' && e.resolucion ? `
         <div class="resolucion">
           <span class="label">Cómo se resolvió</span>
